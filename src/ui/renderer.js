@@ -49,8 +49,11 @@ export class Renderer {
 
     const scene = GameState.scene;
     if (scene === 'title') this.renderTitle(ctx);
-    else if (scene === 'overworld' || scene === 'talk') this.renderWorld(ctx);
-    else if (scene === 'battle') this.renderBattle(ctx);
+    else if (scene === 'overworld') this.renderWorld(ctx);
+    else if (scene === 'talk') {
+      this.renderWorld(ctx);
+      this.renderTalk(ctx);
+    } else if (scene === 'battle') this.renderBattle(ctx);
     else if (scene === 'party' || scene === 'shop' || scene === 'save' || scene === 'evolve') this.renderMenuScenes(ctx);
 
     ctx.restore();
@@ -219,6 +222,45 @@ export class Renderer {
       ctx.textAlign = 'center';
       ctx.fillText('…', LOGICAL_W / 2, LOGICAL_H - 50);
       ctx.textAlign = 'left';
+    }
+  }
+
+  // ---------------- Diálogo (escena talk) ----------------
+  renderTalk(ctx) {
+    const sd = GameState.sceneData;
+    if (!sd || !sd.lines || sd.lines.length === 0) return;
+    const boxH = 76;
+    ctx.fillStyle = 'rgba(13, 10, 20, 0.95)';
+    ctx.fillRect(0, LOGICAL_H - boxH, LOGICAL_W, boxH);
+    ctx.strokeStyle = '#ffb02e';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(3, LOGICAL_H - boxH + 3, LOGICAL_W - 6, boxH - 6);
+    ctx.lineWidth = 1;
+    ctx.textBaseline = 'top';
+    // nombre del NPC
+    if (sd.npc?.name) {
+      ctx.font = 'bold 10px monospace';
+      ctx.fillStyle = '#ffb02e';
+      ctx.fillText(`${sd.npc.name}:`, 12, LOGICAL_H - boxH + 10);
+    }
+    // línea de diálogo con wrap en hasta 2 filas
+    const line = sd.lines[Math.min(sd.idx, sd.lines.length - 1)];
+    const maxW = 44;
+    const words = String(line).split(' ');
+    const rows = [];
+    let out = '';
+    for (const w of words) {
+      if ((out + ' ' + w).trim().length > maxW) { rows.push(out.trim()); out = w; }
+      else out = (out + ' ' + w).trim();
+    }
+    if (out) rows.push(out);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#f4e9d8';
+    rows.slice(0, 2).forEach((r, i) => ctx.fillText(r, 12, LOGICAL_H - boxH + 26 + i * 14));
+    // indicador de continuar
+    if (sd.idx < sd.lines.length - 1) {
+      ctx.fillStyle = '#3fd6c2';
+      ctx.fillText('▼', LOGICAL_W - 18, LOGICAL_H - 22);
     }
   }
 

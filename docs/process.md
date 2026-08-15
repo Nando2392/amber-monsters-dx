@@ -75,3 +75,40 @@ sprite gate (ningún sprite vacío, siluetas únicas).
 - Playtesting humano (el usuario juega 5 min y reporta bugs de UX).
 - Si se quiere: sistema de guardado en slot múltiple, banco de criaturas en la
   tienda, entrenadores rivales con diálogos de victoria.
+
+## 2026-08-15 — Sesión 2: fix diálogos invisibles + auto-repeat (reporte del jugador)
+
+### Reporte del jugador
+"No me deja hablar con ninguno, hay paredes invisibles, falla mi gate."
+
+### Bugs encontrados (reproducción)
+1. **Diálogos invisibles**: `talkTo()` cambiaba la escena a `'talk'` y `_dir()`
+   bloqueaba el movimiento en esa escena, pero `renderer.frame()` dibujaba
+   `'talk'` como si fuera overworld — **sin recuadro de diálogo**. El jugador
+   pulsaba Enter frente a un NPC, no veía nada, y quedaba atascado sin poder
+   moverse ("paredes invisibles"). Los gates existentes NO cubrían el diálogo.
+2. **Sin auto-repeat**: mantener pulsada una flecha solo movía 1 tile (los
+   eventos `pressed` solo se emitían en el primer keydown). UX pobre para un
+   RPG estilo GB.
+
+### Fixes
+1. `renderer.js`: nuevo `renderTalk(ctx)` — caja inferior oscura con borde
+   ámbar, nombre del NPC, texto con wrap en ≤2 líneas y indicador ▼; la escena
+   `'talk'` ahora dibuja overworld + caja.
+2. `input.js`: auto-repeat de direcciones — tras 380ms de mantener pulsada una
+   flecha, se re-emite cada 130ms (hold-to-move). `confirm/cancel/party/save/
+   mute` NO repiten (solo direcciones).
+
+### Gates nuevos (tests/gates/talk.spec.js)
+- Hablar con Orme: navegación real por teclado hasta (4,2) mirando a (4,3),
+  Enter → scene `'talk'` + píxeles ámbar del recuadro en el canvas (>80),
+  4×Enter → cierra y vuelve al overworld.
+- Auto-repeat: mantener ArrowRight 1.2s → `steps` aumenta ≥3.
+
+### Verificación
+| Suite | Resultado |
+|---|---|
+| `npm run test:unit` | 21/21 pass |
+| `npm run test:gates` | 9/9 pass (visual ×2, gameplay ×3, audio ×2, talk ×2) |
+
+Screenshot del diálogo arreglado: `docs/screenshots/dialog-orme.png`.

@@ -12,10 +12,17 @@ const KEYMAP = {
   m: 'mute', M: 'mute',
 };
 
+// Auto-repeat: mantener pulsada una dirección la re-emite (estilo GB: caminar continuo).
+const REPEAT_DIRS = new Set(['up', 'down', 'left', 'right']);
+const REPEAT_DELAY_MS = 380; // espera inicial antes de repetir
+const REPEAT_RATE_MS = 130;  // intervalo entre repeticiones
+
 export class Input {
   constructor(target = window) {
     this.pressed = {};   // nombre -> true (fue presionado este frame)
     this.held = {};      // nombre -> true (sigue presionado)
+    this.heldSince = {}; // nombre -> timestamp del inicio de la pulsación
+    this.repeatAt = {};  // nombre -> timestamp del último repeat
     this.listeners = new Set();
     target.addEventListener('keydown', (e) => this._down(e));
     target.addEventListener('keyup', (e) => this._up(e));
@@ -26,7 +33,11 @@ export class Input {
     const name = KEYMAP[e.key];
     if (!name) return;
     e.preventDefault();
-    if (!this.held[name]) this.pressed[name] = true;
+    if (!this.held[name]) {
+      this.pressed[name] = true;
+      this.heldSince[name] = performance.now();
+      this.repeatAt[name] = 0;
+    }
     this.held[name] = true;
   }
 
@@ -39,6 +50,8 @@ export class Input {
   _clear() {
     this.pressed = {};
     this.held = {};
+    this.heldSince = {};
+    this.repeatAt = {};
   }
 
   /** Llama cb cuando ocurre el evento este frame. */
@@ -47,6 +60,16 @@ export class Input {
   }
 
   consume() {
+    // auto-repeat de direcciones mantenidas pulsadas
+    const now = performance.now();
+    for (const name of Object.keys(this.held)) {
+      if (!this.held[name] || !REPEAT_DIRS.has(name)) continue;
+      const since = this.heldSince[name] || now;
+      if (now - since >= REPEAT_DELAY_MS && now - (this.repeatAt[name] || 0) >= REPEAT_RATE_MS) {
+        this.pressed[name] = true;
+        this.repeatAt[name] = now;
+      }
+    }
     // notifica listeners por evento presionado este frame
     for (const { name, cb } of this.listeners) {
       if (this.pressed[name]) {
