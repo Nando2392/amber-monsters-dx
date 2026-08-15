@@ -184,7 +184,31 @@ export class Renderer {
     ctx.strokeRect(1, LOGICAL_H - 96, LOGICAL_W - 2, 94);
 
     const player = b.player;
+    const isMoves = sd.panel === 'moves';
     if (b.phase === 'player_menu') {
+      const MENU = [
+        { key: 'fight', label: 'Luchar' },
+        { key: 'capture', label: `Orbe (${GameState.orbs})` },
+        { key: 'potion', label: `Poción (${GameState.potions})` },
+        { key: 'party', label: 'Cambiar' },
+        { key: 'flee', label: 'Huir' },
+      ];
+      if (!isMoves) {
+        // menú principal: 5 acciones en una columna, cursor navegable
+        ctx.font = 'bold 10px monospace';
+        MENU.forEach((m, i) => {
+          const y = LOGICAL_H - 84 + i * 17;
+          const active = i === (sd.cursor || 0);
+          ctx.fillStyle = active ? '#ffb02e' : '#f4e9d8';
+          if (active) ctx.fillText('▶', 16, y);
+          ctx.fillText(m.label, 30, y);
+        });
+        ctx.fillStyle = '#9a8bb0';
+        ctx.font = '8px monospace';
+        ctx.fillText('↑↓ elegir · Z confirmar · X volver', 14, LOGICAL_H - 8);
+        return;
+      }
+      // submenú de movimientos
       const moves = player.moves;
       ctx.font = 'bold 10px monospace';
       ctx.fillStyle = '#f4e9d8';
@@ -210,6 +234,9 @@ export class Renderer {
         ctx.fillText(`PS ${player.hp}/${player.maxHp}`, 320, LOGICAL_H - 78);
         ctx.fillText(info ? `${info.name} · ${info.power ? 'Pot ' + info.power : 'Est.'}` : mv, 320, LOGICAL_H - 66);
       }
+      ctx.fillStyle = '#9a8bb0';
+      ctx.font = '8px monospace';
+      ctx.fillText('X: volver', 320, LOGICAL_H - 30);
     } else if (b.phase === 'intro') {
       ctx.font = 'bold 12px monospace';
       ctx.fillStyle = '#ffe9a8';

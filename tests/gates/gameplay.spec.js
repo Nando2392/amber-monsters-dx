@@ -35,25 +35,25 @@ test('flujo: nueva partida → mover → batalla → capturar', async ({ page })
     window.AMBER.giveOrbs(50);
   });
 
-  // confirmar (intro → menú), luego Escape (fight → capture), luego Enter (lanzar orbe)
+  // confirmar (intro → menú principal), luego ↓ (Luchar → Orbe), luego Enter (lanzar orbe)
   await page.keyboard.press('Enter');
   await page.waitForTimeout(200);
   state = await page.evaluate(() => window.AMBER.state());
   expect(state.scene).toBe('battle');
 
-  await page.keyboard.press('Escape');   // fight → capture
+  await page.keyboard.press('ArrowDown'); // Luchar → Orbe
   await page.waitForTimeout(150);
-  await page.keyboard.press('Enter');    // lanzar orbe
+  await page.keyboard.press('Enter');     // lanzar orbe
   await page.waitForTimeout(700);
 
   state = await page.evaluate(() => window.AMBER.state());
   // el enemigo debilitado al 8% → captura inmediata (o la criatura ataca y repetimos)
   if (state.scene !== 'overworld') {
-    await page.keyboard.press('Enter');  // menú de nuevo
+    await page.keyboard.press('Enter');      // menú de nuevo
     await page.waitForTimeout(200);
-    await page.keyboard.press('Escape'); // → capture
+    await page.keyboard.press('ArrowDown');  // → Orbe
     await page.waitForTimeout(150);
-    await page.keyboard.press('Enter');  // lanzar otro orbe
+    await page.keyboard.press('Enter');      // lanzar otro orbe
     await page.waitForTimeout(700);
     state = await page.evaluate(() => window.AMBER.state());
   }

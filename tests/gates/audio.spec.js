@@ -39,9 +39,11 @@ test('audio: AudioContext disponible y batalla cambia a la escena de combate sin
   const state = await page.evaluate(() => window.AMBER.state());
   expect(state.scene).toBe('battle');
 
-  // volver al overworld vía victoria forzada + procesar turno (Enter)
+  // volver al overworld vía victoria forzada + procesar turno (Enter × 3)
   await page.evaluate(() => window.AMBER.winBattle());
-  await page.keyboard.press('Enter');  // intro → menú
+  await page.keyboard.press('Enter');  // intro → menú principal
+  await page.waitForTimeout(200);
+  await page.keyboard.press('Enter');  // Luchar → submenú de movimientos
   await page.waitForTimeout(200);
   await page.keyboard.press('Enter');  // atacar → enemigo a 0 → victoria → overworld
   await page.waitForTimeout(900);

@@ -64,6 +64,9 @@ window.AMBER = {
     badges: GameState.badges,
     dexSeen: GameState.dexSeen,
     muted: GameState.muted,
+    panel: GameState.sceneData?.panel ?? null,
+    cursor: GameState.sceneData?.cursor ?? null,
+    msg: GameState.sceneData?.msg ?? null,
   }),
   newGame: () => {
     resetGame();
@@ -99,6 +102,7 @@ window.AMBER = {
   },
   giveOrbs: (n = 5) => { GameState.orbs = Math.min(GameState.orbsMax, GameState.orbs + n); },
   givePotions: (n = 3) => { GameState.potions = Math.min(GameState.potionsMax, GameState.potions + n); },
+  setPotions: (n = 0) => { GameState.potions = Math.max(0, Math.min(GameState.potionsMax, n)); },
   setSpecies: (idx, species, level) => {
     if (idx >= 0 && idx < GameState.party.length) {
       GameState.party[idx] = createCreature(species, level);
@@ -111,6 +115,10 @@ window.AMBER = {
   weakenEnemy: () => {
     const sd = GameState.sceneData;
     if (sd?.battle) sd.battle.enemy.hp = Math.max(1, Math.floor(sd.battle.enemy.maxHp * 0.08));
+  },
+  damagePlayer: (n = 20) => {
+    const sd = GameState.sceneData;
+    if (sd?.battle) sd.battle.player.hp = Math.max(1, sd.battle.player.hp - n);
   },
   loseBattle: () => {
     const sd = GameState.sceneData;

@@ -15,7 +15,7 @@ export class UI {
   constructor(input) {
     this.input = input;
     this.cursor = 0;
-    this.battleMenu = 'fight'; // fight | capture | party | flee
+    this.battlePanel = 'main'; // 'main' | 'moves' — menú principal vs submenú de movimientos
     this.battleCursor = 0;
     this._wire();
   }
@@ -47,15 +47,23 @@ export class UI {
     if (scene === 'battle') {
       const b = GameState.sceneData?.battle;
       if (!b || b.phase !== 'player_menu') return;
-      if (this.battleMenu === 'fight') {
-        const n = b.player.moves.length;
-        if (dir === 'left') this.battleCursor = Math.max(0, this.battleCursor - 1);
-        if (dir === 'right') this.battleCursor = Math.min(n - 1, this.battleCursor + 1);
-        if (dir === 'up') this.battleCursor = Math.max(0, this.battleCursor - 2);
-        if (dir === 'down') this.battleCursor = Math.min(n - 1, this.battleCursor + 2);
+      const MENU = ['fight', 'capture', 'potion', 'party', 'flee'];
+      if (this.battlePanel === 'main') {
+        // navegar entre las 4 acciones del menú principal
+        if (dir === 'up') this.battleCursor = (this.battleCursor + MENU.length - 1) % MENU.length;
+        if (dir === 'down') this.battleCursor = (this.battleCursor + 1) % MENU.length;
         if (GameState.sceneData) GameState.sceneData.cursor = this.battleCursor;
         audio.move();
+        return;
       }
+      // submenú de movimientos
+      const n = b.player.moves.length;
+      if (dir === 'left') this.battleCursor = Math.max(0, this.battleCursor - 1);
+      if (dir === 'right') this.battleCursor = Math.min(n - 1, this.battleCursor + 1);
+      if (dir === 'up') this.battleCursor = Math.max(0, this.battleCursor - 2);
+      if (dir === 'down') this.battleCursor = Math.min(n - 1, this.battleCursor + 2);
+      if (GameState.sceneData) GameState.sceneData.cursor = this.battleCursor;
+      audio.move();
     }
   }
 
@@ -123,10 +131,15 @@ export class UI {
     if (scene === 'battle') {
       const b = GameState.sceneData?.battle;
       if (b && b.phase === 'player_menu') {
-        const menus = ['fight', 'capture', 'party', 'flee'];
-        const cur = menus.indexOf(this.battleMenu);
-        this.battleMenu = menus[(cur + 1) % menus.length];
-        this.battleCursor = 0;
+        // X/Esc: volver del submenú de movimientos al menú principal
+        if (this.battlePanel === 'moves') {
+          this.battlePanel = 'main';
+          this.battleCursor = 0;
+          if (GameState.sceneData) {
+            GameState.sceneData.cursor = 0;
+            GameState.sceneData.panel = 'main';
+          }
+        }
         audio.cancel();
       }
     }
@@ -161,32 +174,46 @@ export class UI {
     const b = sd.battle;
     if (b.phase === 'intro') {
       b.phase = 'player_menu';
-      this.battleMenu = 'fight';
+      this.battlePanel = 'main';
       this.battleCursor = 0;
+      if (GameState.sceneData) GameState.sceneData.panel = 'main';
       audio.confirm();
       return;
     }
     if (b.phase === 'player_menu') {
-      if (this.battleMenu === 'fight') {
-        const mv = b.player.moves[this.battleCursor];
-        if (!mv) return;
-        const res = b.useMove(mv);
-        if (res?.hit) { audio.hit(); if (res.eff > 1) audio.superHit(); }
-        else if (res && !res.hit) audio.cancel();
-        this._afterBattleMove(b);
-      } else if (this.battleMenu === 'capture') {
-        this._doCapture(b);
-      } else if (this.battleMenu === 'flee') {
-        if (b.flee()) {
-          this._endWildBattle(b);
-          audio.cancel();
-        } else {
-          audio.cancel();
-          this._enemyRespond(b);
+      // menú principal: elegir acción
+      if (this.battlePanel === 'main') {
+        const MENU = ['fight', 'capture', 'potion', 'party', 'flee'];
+        const sel = MENU[this.battleCursor] || 'fight';
+        if (sel === 'fight') {
+          this.battlePanel = 'moves';
+          this.battleCursor = 0;
+          if (GameState.sceneData) GameState.sceneData.panel = 'moves';
+          audio.confirm();
+        } else if (sel === 'capture') {
+          this._doCapture(b);
+        } else if (sel === 'potion') {
+          this._usePotionInBattle(b);
+        } else if (sel === 'flee') {
+          if (b.flee()) {
+            this._endWildBattle(b);
+            audio.cancel();
+          } else {
+            audio.cancel();
+            this._enemyRespond(b);
+          }
+        } else if (sel === 'party') {
+          this._switchInBattle(b);
         }
-      } else if (this.battleMenu === 'party') {
-        this._switchInBattle(b);
+        return;
       }
+      // submenú de movimientos: usar el movimiento seleccionado
+      const mv = b.player.moves[this.battleCursor];
+      if (!mv) return;
+      const res = b.useMove(mv);
+      if (res?.hit) { audio.hit(); if (res.eff > 1) audio.superHit(); }
+      else if (res && !res.hit) audio.cancel();
+      this._afterBattleMove(b);
     }
   }
 
@@ -200,6 +227,23 @@ export class UI {
       audio.cancel();
       this._enemyRespond(b);
     }
+  }
+
+  _usePotionInBattle(b) {
+    if (GameState.potions <= 0) {
+      if (GameState.sceneData) GameState.sceneData.msg = 'No te quedan pociones.';
+      audio.cancel();
+      return;
+    }
+    if (b.player.hp >= b.player.maxHp) {
+      if (GameState.sceneData) GameState.sceneData.msg = 'La vida está llena.';
+      audio.cancel();
+      return;
+    }
+    GameState.potions -= 1;
+    b.player.hp = Math.min(b.player.maxHp, b.player.hp + 40);
+    audio.heal();
+    this._enemyRespond(b);
   }
 
   _switchInBattle(b) {
@@ -236,8 +280,13 @@ export class UI {
       return;
     }
     b.phase = 'player_menu';
-    this.battleMenu = 'fight';
+    this.battlePanel = 'main';
     this.battleCursor = 0;
+    if (GameState.sceneData) {
+      GameState.sceneData.panel = 'main';
+      GameState.sceneData.cursor = 0;
+      GameState.sceneData.msg = null;
+    }
   }
 
   _onWin(b) {
