@@ -58,6 +58,15 @@ function makeHighGrass(seed = 3) {
   return m;
 }
 
+// ---- Arbusto bajo (decorativo, NO dispara encuentros; se distingue de la hierba alta) ----
+function makeBush(seed = 13) {
+  const m = makeGrass(seed);
+  // manchas verdes oscuras bajas, sin mechones verticales altos
+  for (let x = 2; x < 16; x += 4) { m[10][x] = 11; m[11][x] = 11; }
+  for (let x = 4; x < 16; x += 5) { m[12][x] = 11; m[13][x] = 11; }
+  return m;
+}
+
 // ---- Árbol: copa redonda + tronco ----
 function makeTree() {
   const m = blank();
@@ -145,6 +154,7 @@ function makeHouse() {
 export const TILE_SPRITES = {
   '.': [makeGrass(1)],
   '^': [makeHighGrass(3)],
+  'G': [makeBush(13)],
   'F': [makeFlower()],
   'f': [makeFlower()],
   'R': [makeRock()],
