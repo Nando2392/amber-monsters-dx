@@ -151,6 +151,17 @@ function makeHouse() {
   return m;
 }
 
+// ---- Pad de centro de cura: suelo claro con cruz (cura al interactuar) ----
+function makeHealPad() {
+  const m = blank();
+  fillRect(m, 0, 0, 16, 16, 18);        // base celeste
+  fillRect(m, 1, 1, 14, 14, 15);       // panel gris claro
+  fillRect(m, 6, 3, 4, 10, 4);         // cruz vertical (ámbar)
+  fillRect(m, 3, 6, 10, 4, 4);         // cruz horizontal
+  m[0][0] = 9; m[15][0] = 9; m[0][15] = 9; m[15][15] = 9; // esquinas turquesa
+  return m;
+}
+
 export const TILE_SPRITES = {
   '.': [makeGrass(1)],
   '^': [makeHighGrass(3)],
@@ -166,4 +177,5 @@ export const TILE_SPRITES = {
   '=': makeWater(5, 6),
   'H': [makeHouse()],
   'S': [makeHouse()],
+  'C': [makeHealPad()],
 };

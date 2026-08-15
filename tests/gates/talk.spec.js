@@ -37,11 +37,11 @@ test('hablar con Orme muestra el diálogo en pantalla y se cierra con Enter', as
   const { x, y } = st.player;
   expect(st.scene).toBe('overworld');
 
-  // Subir por la columna del spawn hasta la fila 2 (camino libre: '.' y hierba '^'),
-  // luego izquierda hasta x=4 para quedar adyacente a Orme (4,3) mirando hacia abajo.
-  await pressDir(page, 'ArrowUp', y - 2);
-  await pressDir(page, 'ArrowLeft', x - 4);
-  await page.keyboard.press('ArrowDown'); // girar hacia Orme (bloqueado → solo mira)
+  // Orme está delante de su casa (5,8) mirando abajo. Pararse en (5,9) mirando arriba.
+  await pressDir(page, 'ArrowUp', y - 9);   // subir hasta la fila 9
+  if (x > 5) await pressDir(page, 'ArrowLeft', x - 5);
+  else if (x < 5) await pressDir(page, 'ArrowRight', 5 - x);
+  await page.keyboard.press('ArrowUp');     // girar hacia Orme (bloqueado → solo mira)
   await page.waitForTimeout(200);
 
   // Interactuar: debe entrar en escena talk y DIBUJAR el recuadro (píxeles ámbar > umbral).

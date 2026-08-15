@@ -23,7 +23,7 @@ function loop(t) {
   if (GameState.scene === 'overworld' && GameState.player) {
     if (GameState.player.moving) {
       GameState.player.animT += dt;
-      if (GameState.player.animT >= 180) {
+      if (GameState.player.animT >= 110) {
         GameState.player.moving = false;
         GameState.player.animT = 0;
       }

@@ -486,6 +486,13 @@ export const ENCOUNTERS = {
     ['glimmerwing', 20],
     ['emberkit', 15],
   ],
+  town: [
+    ['emberkit', 28],
+    ['wispit', 26],
+    ['boulderk', 22],
+    ['glimmerwing', 16],
+    ['dewpup', 8],
+  ],
 };
 
 // ---- Instancia de criatura ----

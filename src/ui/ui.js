@@ -75,8 +75,24 @@ export class UI {
       if (npc) { talkTo(npc); audio.confirm(); return; }
       const door = facingDoor();
       if (door) {
-        initWorld(door.to, { x: door.tx ?? 3, y: door.ty ?? 12 });
-        audio.confirm();
+        if (door.to === 'heal') {
+          healParty();
+          GameState.scene = 'heal';
+          GameState.sceneData = {};
+          audio.heal();
+        } else if (door.to === 'shop') {
+          GameState.scene = 'shop';
+          GameState.sceneData = { cursor: 0 };
+          this.cursor = 0;
+          audio.confirm();
+        } else if (door.to === 'talk') {
+          GameState.scene = 'talk';
+          GameState.sceneData = { npc: { name: door.name || 'Vecino' }, lines: door.lines || ['…'], idx: 0 };
+          audio.confirm();
+        } else {
+          initWorld(door.to, { x: door.tx ?? 3, y: door.ty ?? 12 });
+          audio.confirm();
+        }
         return;
       }
       return;
@@ -105,6 +121,12 @@ export class UI {
       }
       return;
     }
+    if (scene === 'heal') {
+      GameState.scene = 'overworld';
+      GameState.sceneData = null;
+      audio.confirm();
+      return;
+    }
     if (scene === 'save') {
       if (saveGame()) audio.confirm();
       GameState.scene = 'overworld';
@@ -122,7 +144,7 @@ export class UI {
 
   _cancel() {
     const scene = GameState.scene;
-    if (scene === 'party' || scene === 'shop' || scene === 'save' || scene === 'talk') {
+    if (scene === 'party' || scene === 'shop' || scene === 'save' || scene === 'talk' || scene === 'heal') {
       GameState.scene = 'overworld';
       GameState.sceneData = null;
       audio.cancel();
@@ -171,6 +193,7 @@ export class UI {
   _battleConfirm() {
     const sd = GameState.sceneData;
     if (!sd || !sd.battle) return;
+    if (sd.fx?.kind === 'capture') return; // orbe en vuelo: no aceptar más órdenes
     const b = sd.battle;
     if (b.phase === 'intro') {
       b.phase = 'player_menu';
@@ -211,22 +234,46 @@ export class UI {
       const mv = b.player.moves[this.battleCursor];
       if (!mv) return;
       const res = b.useMove(mv);
-      if (res?.hit) { audio.hit(); if (res.eff > 1) audio.superHit(); }
-      else if (res && !res.hit) audio.cancel();
+      if (res?.hit && typeof res.dmg === 'number') {
+        audio.hit(); if (res.eff > 1) audio.superHit();
+        if (GameState.sceneData) {
+          GameState.sceneData.fx = { kind: 'hit', side: 'player', t0: performance.now(), dmg: res.dmg, eff: res.eff };
+        }
+      } else if (res?.hit) {
+        audio.confirm(); // movimiento de apoyo (buff) sin daño
+      } else if (res && !res.hit) {
+        audio.cancel();
+        if (GameState.sceneData) GameState.sceneData.fx = { kind: 'miss', side: 'player', t0: performance.now() };
+      }
       this._afterBattleMove(b);
     }
   }
 
   _doCapture(b) {
-    const res = tryCapture(b.enemy);
-    if (res.success) {
-      audio.capture();
-      this._endWildBattle(b);
-    } else {
-      if (GameState.sceneData) GameState.sceneData.msg = res.message;
+    if (GameState.orbs <= 0) {
+      if (GameState.sceneData) GameState.sceneData.msg = 'No te quedan orbes ámbar.';
       audio.cancel();
-      this._enemyRespond(b);
+      return;
     }
+    // animación del orbe volador; la captura real se resuelve al aterrizar
+    if (GameState.sceneData) {
+      GameState.sceneData.fx = { kind: 'capture', t0: performance.now(), species: b.enemy.species };
+    }
+    audio.confirm();
+    setTimeout(() => {
+      if (!GameState.sceneData?.battle) return;
+      const res = tryCapture(b.enemy);
+      if (GameState.sceneData) GameState.sceneData.fx = null;
+      if (res.success) {
+        if (GameState.sceneData) GameState.sceneData.msg = res.message;
+        audio.capture();
+        setTimeout(() => this._endWildBattle(b), 800);
+      } else {
+        if (GameState.sceneData) GameState.sceneData.msg = res.message;
+        audio.cancel();
+        this._enemyRespond(b);
+      }
+    }, 950);
   }
 
   _usePotionInBattle(b) {
@@ -260,7 +307,14 @@ export class UI {
   _enemyRespond(b) {
     setTimeout(() => {
       if (!GameState.sceneData?.battle) return;
-      b.enemyAct();
+      const ev = b.enemyAct();
+      if (ev && GameState.sceneData) {
+        if (ev.type === 'hit') {
+          GameState.sceneData.fx = { kind: 'hit', side: 'enemy', t0: performance.now(), dmg: ev.dmg, eff: ev.eff };
+        } else if (ev.type === 'miss') {
+          GameState.sceneData.fx = { kind: 'miss', side: 'enemy', t0: performance.now() };
+        }
+      }
       this._afterEnemyMove(b);
     }, 450);
   }
@@ -286,6 +340,7 @@ export class UI {
       GameState.sceneData.panel = 'main';
       GameState.sceneData.cursor = 0;
       GameState.sceneData.msg = null;
+      GameState.sceneData.fx = null;
     }
   }
 
@@ -306,9 +361,10 @@ export class UI {
         return;
       }
     }
-    this._endWildBattle(b);
+    // pequeño delay para que se vea el golpe final antes de salir
+    setTimeout(() => this._endWildBattle(b), 800);
+    return;
   }
-
   _onLose(b) {
     audio.faint();
     setTimeout(() => {

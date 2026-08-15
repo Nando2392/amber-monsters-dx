@@ -96,12 +96,12 @@ export class Renderer {
     let px = p.x, py = p.y;
     if (p.moving) {
       const d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[p.dir];
-      const k = Math.min(1, (p.animT || 0) / 180);
+      const k = Math.min(1, (p.animT || 0) / 110);
       px = p.x - d[0] * (1 - k);
       py = p.y - d[1] * (1 - k);
     }
     const frames = PLAYER_FRAMES[p.dir];
-    const walkFrame = p.moving ? Math.floor(this.animT / 160) % 2 : 0;
+    const walkFrame = p.moving ? Math.floor(this.animT / 90) % 2 : 0;
     const img = cached(frames[walkFrame], 2);
     ctx.drawImage(img, (px - t0x) * TILE_SIZE - ox, (py - t0y) * TILE_SIZE - oy - 4, TILE_SIZE * 2, TILE_SIZE * 2);
   }
@@ -113,23 +113,35 @@ export class Renderer {
     const enemy = sd.enemy;
     const b = sd.battle;
     const player = b ? b.player : GameState.party[0];
+    const fx = sd.fx || null;
+    const age = fx ? this.animT - fx.t0 : 0;
+
     // fondo
     ctx.fillStyle = '#1a1226';
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-    // zona superior con gradiente
     const grad = ctx.createLinearGradient(0, 0, 0, LOGICAL_H);
     grad.addColorStop(0, '#241b33');
     grad.addColorStop(1, '#1a1226');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-    // criatura enemiga (derecha, grande)
-    if (enemy) {
+    // sacudida de la víctima al recibir un golpe
+    let enemyShake = 0, playerShake = 0;
+    if (fx && fx.kind === 'hit') {
+      const shake = Math.sin(age / 32) * 6 * Math.max(0, 1 - age / 420);
+      if (fx.side === 'player') enemyShake = shake;   // el jugador ataca → la víctima es el enemigo
+      else playerShake = shake;                       // el enemigo ataca → la víctima es el jugador
+    }
+
+    // criatura enemiga (derecha, grande) — se oculta parpadeando al ser capturada
+    let enemyVisible = true;
+    if (fx && fx.kind === 'capture' && age > 400) enemyVisible = Math.floor(age / 90) % 2 === 0;
+    if (enemy && enemyVisible) {
       const frames = SPECIES[enemy.species].battle;
       const frame = frames[Math.floor(this.animT / 250) % 2];
       const img = cached(frame, 6);
       const wobble = Math.sin(this.animT / 200) * 2;
-      ctx.drawImage(img, 330 - 24, 70 - 24 + wobble, 96, 96);
+      ctx.drawImage(img, 330 - 24 + enemyShake, 70 - 24 + wobble, 96, 96);
       // nombre + nivel
       ctx.font = '8px monospace';
       ctx.fillStyle = '#f4e9d8';
@@ -137,12 +149,6 @@ export class Renderer {
       ctx.fillText(`${SPECIES[enemy.species].name} Nv${enemy.level}`, 322, 12);
       // barra HP enemigo
       this.hpBar(ctx, 322, 26, enemy.hp, enemy.maxHp, '#3fd6c2');
-      // texto estado
-      if (sd.msg) {
-        ctx.fillStyle = '#ffe9a8';
-        ctx.font = 'bold 10px monospace';
-        ctx.fillText(sd.msg, 20, 120);
-      }
     }
 
     // criatura del jugador (izquierda)
@@ -151,11 +157,80 @@ export class Renderer {
       const frame = frames[Math.floor(this.animT / 250) % 2];
       const img = cached(frame, 6);
       const bob = Math.sin(this.animT / 180) * 2;
-      ctx.drawImage(img, 40, 170 + bob, 96, 96);
+      ctx.drawImage(img, 40 + playerShake, 170 + bob, 96, 96);
       ctx.font = '8px monospace';
       ctx.fillStyle = '#f4e9d8';
       ctx.fillText(`${player.name} Nv${player.level}`, 32, 160);
       this.hpBar(ctx, 32, 174, player.hp, player.maxHp, '#79d94a');
+    }
+
+    // ---- efectos de batalla ----
+    if (fx) {
+      if (fx.kind === 'hit') {
+        const isEnemy = fx.side === 'player';
+        const vx = isEnemy ? 330 - 24 : 40;
+        const vy = isEnemy ? 70 - 24 : 170;
+        // destello blanco en la víctima al impactar
+        if (age < 140) {
+          ctx.fillStyle = `rgba(255,255,255,${0.45 * (1 - age / 140)})`;
+          ctx.fillRect(vx - 6, vy - 6, 108, 108);
+        }
+        // texto de daño flotante
+        const rise = Math.min(1, age / 320);
+        ctx.globalAlpha = 1 - rise;
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = fx.eff > 1 ? '#ffb02e' : fx.eff < 1 ? '#9a8bb0' : '#f4e9d8';
+        ctx.fillText(`-${fx.dmg}`, vx + 48, vy + 30 - rise * 22);
+        ctx.textAlign = 'left';
+        ctx.globalAlpha = 1;
+      } else if (fx.kind === 'miss') {
+        const isEnemy = fx.side === 'player';
+        const vx = isEnemy ? 330 - 24 : 40;
+        const vy = isEnemy ? 70 - 24 : 170;
+        const rise = Math.min(1, age / 300);
+        ctx.globalAlpha = 1 - rise;
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#9a8bb0';
+        ctx.fillText('¡Falló!', vx + 48, vy + 30 - rise * 18);
+        ctx.textAlign = 'left';
+        ctx.globalAlpha = 1;
+      } else if (fx.kind === 'capture') {
+        // orbe ámbar volando del jugador al enemigo con arco
+        const p0 = { x: 40 + 48, y: 170 + 48 };
+        const p1 = { x: 330 - 24 + 48, y: 70 - 24 + 48 };
+        const t = Math.min(1, age / 360);
+        const ox = p0.x + (p1.x - p0.x) * t;
+        const oy = p0.y + (p1.y - p0.y) * t - Math.sin(t * Math.PI) * 70;
+        if (age < 400) {
+          ctx.beginPath();
+          ctx.arc(ox, oy, 10, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffb02e';
+          ctx.fill();
+          ctx.strokeStyle = '#c77d1e';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          // el orbe "absorbe" a la criatura
+          ctx.beginPath();
+          ctx.arc(330 - 24 + 48, 70 - 24 + 48, 10 + (age - 400) / 30, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,176,46,0.9)';
+          ctx.fill();
+          ctx.font = 'bold 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#ffe9a8';
+          ctx.fillText('¡Ya!', 330 + 24, 40);
+          ctx.textAlign = 'left';
+        }
+      }
+    }
+
+    // texto de estado (mensajes de captura fallida, sin pociones, etc.)
+    if (sd.msg && !(fx && fx.kind === 'hit')) {
+      ctx.fillStyle = '#ffe9a8';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(sd.msg, 20, 120);
     }
 
     // menú de combate (abajo)
@@ -299,7 +374,24 @@ export class Renderer {
     if (scene === 'party') this.renderParty(ctx);
     else if (scene === 'shop') this.renderShop(ctx);
     else if (scene === 'save') this.renderSave(ctx);
+    else if (scene === 'heal') this.renderHeal(ctx);
     else if (scene === 'evolve') this.renderEvolve(ctx);
+  }
+
+  renderHeal(ctx) {
+    ctx.fillStyle = '#241b33';
+    ctx.fillRect(8, 8, LOGICAL_W - 16, LOGICAL_H - 16);
+    ctx.strokeStyle = '#3fd6c2';
+    ctx.strokeRect(8, 8, LOGICAL_W - 16, LOGICAL_H - 16);
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = '#3fd6c2';
+    ctx.fillText('CENTRO DE CURA', 20, 30);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#f4e9d8';
+    ctx.fillText('Tu party ha sido curada por completo.', 20, 60);
+    ctx.fillText('Sigue explorando, ¡y vuelve cuando lo necesites!', 20, 78);
+    ctx.fillStyle = '#9a8bb0';
+    ctx.fillText('Z: continuar  X: salir', 16, LOGICAL_H - 20);
   }
 
   renderParty(ctx) {

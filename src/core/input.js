@@ -14,8 +14,8 @@ const KEYMAP = {
 
 // Auto-repeat: mantener pulsada una dirección la re-emite (estilo GB: caminar continuo).
 const REPEAT_DIRS = new Set(['up', 'down', 'left', 'right']);
-const REPEAT_DELAY_MS = 380; // espera inicial antes de repetir
-const REPEAT_RATE_MS = 130;  // intervalo entre repeticiones
+const REPEAT_DELAY_MS = 220; // espera inicial antes de repetir
+const REPEAT_RATE_MS = 80;   // intervalo entre repeticiones
 
 export class Input {
   constructor(target = window) {
