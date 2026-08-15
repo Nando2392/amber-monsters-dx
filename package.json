@@ -1,0 +1,22 @@
+{
+  "name": "amber-monsters-dx",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Amber Monsters DX — retro 2D monster-taming RPG. 100% original. Vite + Canvas + JS.",
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:gates": "playwright test",
+    "gates": "npm run build && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

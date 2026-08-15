@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amber Monsters DX</title>
+  <style>
+    :root {
+      --bg: #14101c;
+      --panel: #241b33;
+      --amber: #ffb02e;
+      --text: #f4e9d8;
+      --dim: #9a8bb0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: radial-gradient(circle at 50% 30%, #1c1530 0%, #0d0a14 70%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: 'Courier New', ui-monospace, monospace;
+      color: var(--text);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #wrap {
+      position: relative;
+      border: 4px solid #3a2c52;
+      border-radius: 6px;
+      box-shadow: 0 0 0 2px #000, 0 0 40px rgba(255, 176, 46, 0.15), 0 18px 50px rgba(0,0,0,.6);
+      background: #000;
+    }
+    canvas#game {
+      display: block;
+      width: 960px;
+      height: 640px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: #000;
+    }
+    #hint {
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: var(--dim);
+      text-align: center;
+      line-height: 1.6;
+    }
+    #hint b { color: var(--amber); }
+    @media (max-width: 1000px) {
+      canvas#game { width: 100vw; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="960" height="640"></canvas>
+  </div>
+  <div id="hint">
+    <b>AMBER MONSTERS DX</b> — flechas: mover · Z/Enter: confirmar · X/Esc: cancelar/pausa · M: silencio<br/>
+    Gestiona tu party con <b>P</b> · Guarda con <b>S</b> (menú) · Tu aventura se autoguarda
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
